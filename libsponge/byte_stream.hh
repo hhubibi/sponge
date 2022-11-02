@@ -11,6 +11,14 @@
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
+    bool _eof = false;
+    size_t _capacity;
+    size_t _size = 0;
+    int _first;
+    int _last = 0;
+    size_t _total_read = 0;
+    size_t _total_write = 0;
+    std::string _buffer;
 
     // Hint: This doesn't need to be a sophisticated data structure at
     // all, but if any of your tests are taking longer than a second,
@@ -18,6 +26,9 @@ class ByteStream {
     // different approaches.
 
     bool _error{};  //!< Flag indicating that the stream suffered an error.
+
+    int _plus_num(const int a, const int b) const { return (a + b) % _capacity; }
+    int _minus_num(const int a, const int b) const { return (a - b + _capacity) % _capacity; }
 
   public:
     //! Construct a stream with room for `capacity` bytes.
