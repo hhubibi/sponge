@@ -20,11 +20,10 @@ class StreamReassembler {
 
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    std::list<uint64_t> _unassembled_indice;
-    std::map<uint64_t, std::string> _unassembled_map;
+    std::map<uint64_t, std::pair<std::string, uint64_t>> _unassembled_map;
 
   private:
-    size_t push_substring(const std::string &data, const size_t index);
+    void push_string(const std::string &data, const size_t index);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.

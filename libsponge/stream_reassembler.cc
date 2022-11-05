@@ -12,13 +12,16 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-StreamReassembler::StreamReassembler(const size_t capacity) : _output(capacity), _capacity(capacity), _unassembled_indice(), _unassembled_map() {}
+StreamReassembler::StreamReassembler(const size_t capacity) : _output(capacity), _capacity(capacity), _unassembled_map() {}
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    size_t first_unread = _output.bytes_read();
+    if (_output.input_ended()) {
+        return;
+    }
+
     size_t first_unassembled = _output.bytes_written();
     size_t first_unacceptable = _output.bytes_read() + _capacity;
 
@@ -35,144 +38,83 @@ void StreamReassembler::push_substring(const string &data, const size_t index, c
         return;
     }
 
-    // Discards bytes as the `_output` buffer is full or input reaches eof.
-    if (_output.remaining_capacity() == 0 || _output.input_ended()) {
-        return;
-    }
+    size_t start = index <= first_unassembled ? first_unassembled : index;
+    size_t end = index + data.length() >= first_unacceptable ? first_unacceptable : index + data.length();
 
-    // Set eof index and flag.
-    if (eof) {
+    // Truncates the data as it's tail exceed the capacity.
+    string new_data = data.substr(start - index, end - index);
+
+    // Set eof index and flag if the data's eof is remained.
+    if (eof && end == index + data.length()) {
         _eof_pos = index + data.length();
         _eof_setted = true;
     }
 
-    if (index <= _output.bytes_written()) {
-        
-    }
+    if (start == first_unassembled) {
+        push_string(new_data, start);
 
-
-    // TODO:
-    // 1. How to use eof ?
-    // 2. Push first, then remove some items in map
-    // 3. Can't push, insert to map
-
-    
-
-    
-
-    if (index <= _output.bytes_written()) {
-        push_substring(data, index);
-
+        auto it = _unassembled_map.begin();
         while (it != _unassembled_map.end()) {
-            if (it->first <= _output.bytes_written()) {
-                size_t curr_idx = it->first;
-                string curr_data = it->second;
-                size_t written = push_substring(it->second, it->first);
-                _unassembled -= written;
-                it = _unassembled_map.erase(it);
-                _unassembled_indice.remove(it->first);
-                if (written < it->second.length()) {
-                    _unassembled_indice.push_front(curr_idx + written);
-                    _unassembled_map[curr_idx] = curr_data.substr(written);
-                    break;
+            first_unassembled = _output.bytes_written();
+            if (it->first <= first_unassembled) {
+                if (it->second.second > first_unassembled) {
+                    size_t tmp_start = it->first <= first_unassembled ? first_unassembled : it->first;
+                    push_string(it->second.first.substr(tmp_start - it->first), tmp_start);
                 }
+                _unassembled -= it->second.first.length();
+                it = _unassembled_map.erase(it);
             } else {
                 break;
             }
         }
-
-        if (_output.buffer_size() + _unassembled >= _capacity) {
-            size_t to_remove = _output.buffer_size() + _unassembled - _capacity;
-            _unassembled -= to_remove;
-            while (!_unassembled_indice.empty() && to_remove > 0) {
-                size_t idx = _unassembled_indice.back();
-                if (_unassembled_map[idx].length() > to_remove) {
-                    size_t truncated_pos = _unassembled_map[idx].length() - to_remove;
-                    _unassembled_map[idx] = _unassembled_map[idx].substr(0, truncated_pos);
+    } else {
+        // TODO: insert it to map
+        bool need_insert = true;
+        auto it = _unassembled_map.begin();
+        while (it != _unassembled_map.end()) {
+            if (it->first <= start) {
+                if (it->second.second >= end) {
+                    need_insert = false;
                     break;
                 } else {
-                    _unassembled_indice.pop_back();
-                    to_remove -= _unassembled_map[idx].length();
-                    _unassembled_map.erase(idx);
-                }
-            }
-        } 
-        
-        
-    } else {
-        string new_data;
-        size_t new_index;
-        if (_unassembled_map.count(index)) {
-            if (data.length() <= _unassembled_map[index].length()) {
-                return;
-            } else {
-                new_data = data.substr(_unassembled_map[index].length());
-                new_index = index + _unassembled_map[index].length();
-            }
-        } else {
-            new_data = data;
-            new_index = index;
-            size_t begin = 0;
-            size_t end = data.length();
-            size_t data_end_pos = index + data.length();
-            auto it = _unassembled_map.begin();
-            while (it != _unassembled_map.end()) {
-                if (it->first <= index) {
-                    if (it->first + it->second.length() <= index) {
-                        continue;
-                    } else {
-                        if (it->first + it->second->length() >= data_end_pos) {
-                            return;
-                        } else {
-                            if ()
+                    if (it->second.second > start) {
+                        _unassembled -= (it->second.second - start);
+                        it->second.first = it->second.first.substr(0, start - it->first);
+                        it->second.second = start;
+                        if (it->second.first.length() == 0) {
+                            it = _unassembled_map.erase(it);
+                            continue;
                         }
                     }
+                    ++it;
                 }
-
-                if (it->first > index) {
+            } else {
+                if (it->first >= end) {
                     break;
                 } else {
-                    if (it->first + it->second.length() <= index) {
-                        ++it;
-                        continue;
-                    }
-                    if (it->first + it->second.length() >= index + data.length()) {
-                        return;
+                    if (it->second.second <= end) {
+                        _unassembled -= it->second.first.length();
+                        it = _unassembled_map.erase(it);
                     } else {
-                        new_data = data.substr(it->second.length() + it->first - index);
-                        new_index = it->first + it->second.length();
-                        break;
+                        end = it->first;
+                        new_data = new_data.substr(0, end - start);
+                        ++it;
                     }
                 }
-                ++it;
             }
         }
-        _unassembled += new_data.size();
-        _unassembled_indice.push_back(new_index);
-        _unassembled_map[new_index] = new_data; 
+        if (need_insert && new_data.length() > 0) {
+            _unassembled_map[start] = make_pair(new_data, end);
+            _unassembled += new_data.length();
+        }
     }
-
-    // Discards bytes that exceed the capacity or have been pushed.
 }
 
-size_t StreamReassembler::push_substring(const string &data, const size_t index) {
-    // The end index of the data string within limits of the capacity
-    size_t first_unassembled = _output.bytes_written();
-    size_t next_unassembled = index + data.length();
-    size_t remained_cap = _capacity - _output.buffer_size();
-    
-    if (next_unassembled - first_unassembled > remained_cap) {
-        next_unassembled = first_unassembled + remained_cap;
-    }
-    if (_eof_setted && _eof_pos <= next_unassembled) {
+void StreamReassembler::push_string(const string &data, const size_t index) {
+    if (_eof_setted && index + data.length() == _eof_pos) {
         _output.end_input();
-        next_unassembled = _eof_pos;
     }
-    if (first_unassembled - index >= data.length()|| first_unassembled >= next_unassembled) {
-        return data.length();
-    }
-    _output.write(data.substr(first_unassembled - index, next_unassembled - first_unassembled));
-    return next_unassembled + index - 2 * first_unassembled;
+    _output.write(data);
 }
 
 size_t StreamReassembler::unassembled_bytes() const { return _unassembled; }
