@@ -36,13 +36,16 @@ size_t ByteStream::write(const string &data) {
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
+    if (len == 0) {
+        return "";
+    }
     size_t can_peek = len > _size ? _size : len;
     string out_buffer(can_peek, ' ');
     int next_first = _plus_num(_first, static_cast<int>(can_peek));
     int start_pos = _plus_num(_first, 1);
     if (next_first < start_pos) {
         copy(_buffer.begin() + start_pos, _buffer.end(), out_buffer.begin());
-        copy(_buffer.begin(), _buffer.begin() + next_first + 1, out_buffer.begin() + this->_capacity - start_pos);
+        copy(_buffer.begin(), _buffer.begin() + next_first + 1, out_buffer.begin() + _capacity - start_pos);
     } else {
         copy(_buffer.begin() + start_pos, _buffer.begin() + next_first + 1, out_buffer.begin());
     }
