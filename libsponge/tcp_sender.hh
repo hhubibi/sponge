@@ -5,6 +5,7 @@
 #include "tcp_config.hh"
 #include "tcp_segment.hh"
 #include "wrapping_integers.hh"
+#include "tcp_timer.hh"
 
 #include <functional>
 #include <queue>
@@ -32,6 +33,15 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
 
+    std::queue<TCPSegment> _segments_track{};
+    uint64_t _bytes_in_flight{0};
+    uint16_t _window_size{1};
+    uint64_t _ackno{0};
+    
+    TCPTimer _timer{};
+    unsigned int _consecutive_retransmissions{0};
+    bool _fin{false};
+
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
@@ -55,6 +65,8 @@ class TCPSender {
 
     //! \brief create and send segments to fill as much of the window as possible
     void fill_window();
+
+    void send_tcp_segment(TCPSegment& seg);
 
     //! \brief Notifies the TCPSender of the passage of time
     void tick(const size_t ms_since_last_tick);
