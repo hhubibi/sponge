@@ -1,4 +1,6 @@
 #include "tcp_receiver.hh"
+#include "wrapping_integers.hh"
+#include <cstdint>
 
 // Dummy implementation of a TCP receiver
 
@@ -11,27 +13,22 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 using namespace std;
 
 void TCPReceiver::segment_received(const TCPSegment &seg) {
-    if (!_syn && !seg.header().syn) {
-        return;
+    if (seg.header().syn) {
+        _isn = seg.header().seqno;
+        _syn = true;
     }
-    if (_fin && _reassembler.empty()) {
+
+    // Not receive SYN or has received FIN and has finished output
+    if (!_syn || (_fin && _reassembler.empty())) {
         return;
     }
 
-    WrappingInt32 n{0};
-    if (seg.header().syn) {
-        _syn = true;
-        _isn = seg.header().seqno;
-        n = _isn + 1;
-    } else {
-        n = seg.header().seqno;
-    }
-    
     if (seg.header().fin) {
         _fin = true;
     }
-    uint64_t index = unwrap(n, _isn, static_cast<uint64_t>(stream_out().bytes_written()));
-    _reassembler.push_substring(seg.payload().copy(), index - 1, seg.header().fin);
+
+    uint64_t abs_seqno = unwrap(seg.header().seqno + seg.header().syn, _isn, static_cast<uint64_t>(stream_out().bytes_written()));
+    _reassembler.push_substring(seg.payload().copy(), abs_seqno - 1, seg.header().fin);
 }
 
 optional<WrappingInt32> TCPReceiver::ackno() const {
