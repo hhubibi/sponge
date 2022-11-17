@@ -4,10 +4,9 @@
 #include <cstdint>
 
 struct TCPTimer {
-    //! retransmission timer for the connection
-    unsigned int timeout{0};
-    unsigned int elasped{0};
-    bool running{false};
+    unsigned int timeout = 0;
+    unsigned int elasped = 0;
+    bool running = false;
 
     TCPTimer() {}
 
