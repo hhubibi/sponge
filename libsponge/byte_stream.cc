@@ -34,10 +34,10 @@ size_t ByteStream::write(const string &data) {
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
-    if (len == 0) {
+    size_t can_peek = len > _size ? _size : len;
+    if (can_peek == 0) {
         return "";
     }
-    size_t can_peek = len > _size ? _size : len;
     string out_buffer(can_peek, ' ');
     int next_first = _plus_num(_first, static_cast<int>(can_peek));
     int start_pos = _plus_num(_first, 1);
@@ -63,9 +63,10 @@ void ByteStream::pop_output(const size_t len) {
 //! \returns a string
 std::string ByteStream::read(const size_t len) {
     string out_buffer = peek_output(len);
-    _first = _plus_num(_first, out_buffer.length());
-    _total_read += out_buffer.length();
-    _size -= out_buffer.length();
+    // _first = _plus_num(_first, out_buffer.length());
+    // _total_read += out_buffer.length();
+    // _size -= out_buffer.length();
+    pop_output(out_buffer.length());
     return out_buffer;
 }
 
