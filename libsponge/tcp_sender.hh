@@ -43,8 +43,6 @@ class TCPSender {
     TCPTimer _timer{};
     bool _fin = false;
 
-    void send_tcp_segment(TCPSegment& seg);
-
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,

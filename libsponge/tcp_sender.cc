@@ -35,43 +35,38 @@ void TCPSender::fill_window() {
         return;
     }
 
-    TCPSegment seg;
-    if (_next_seqno == 0) {
-        seg.header().syn = true;
-        send_tcp_segment(seg);
-        return;
-    }
-
     uint16_t window_size = _window_size > 0 ? _window_size : 1;
-    if (_stream.eof() && _bytes_in_flight < window_size) {
-        seg.header().fin = true;
-        _fin = true;
-        send_tcp_segment(seg);
-        return;
-    }
+    while (window_size > _bytes_in_flight) {
+        TCPSegment seg;
 
-    while (!_stream.buffer_empty() && window_size > _bytes_in_flight) {
-        size_t seg_len = min(window_size - _bytes_in_flight, TCPConfig::MAX_PAYLOAD_SIZE);
-        seg_len = min(seg_len, _stream.buffer_size());
-        seg.payload() = _stream.read(seg_len);
-        if (_stream.eof() && _bytes_in_flight + seg_len < window_size) {
+        if (_next_seqno == 0) {
+            seg.header().syn = true;
+        }
+
+        size_t payload_len = min(window_size - _bytes_in_flight - seg.header().syn, TCPConfig::MAX_PAYLOAD_SIZE);
+        seg.payload() = _stream.read(payload_len);
+
+        if (_stream.eof() && _bytes_in_flight + seg.length_in_sequence_space() + seg.header().syn < window_size) {
             seg.header().fin = true;
             _fin = true;
-            send_tcp_segment(seg);
+        }
+
+        if (seg.length_in_sequence_space() == 0) {
             return;
         }
-        send_tcp_segment(seg);
-    }
-}
+        
+        seg.header().seqno = wrap(_next_seqno, _isn);
+        _segments_out.push(seg);
+        _segments_track.push(seg);
+        _next_seqno += seg.length_in_sequence_space();
+        _bytes_in_flight += seg.length_in_sequence_space();
+        if (!_timer.running) {
+            _timer.start(_initial_retransmission_timeout);
+        }
 
-void TCPSender::send_tcp_segment(TCPSegment& seg) {
-    seg.header().seqno = wrap(_next_seqno, _isn);
-    _segments_out.push(seg);
-    _segments_track.push(seg);
-    _next_seqno += seg.length_in_sequence_space();
-    _bytes_in_flight += seg.length_in_sequence_space();
-    if (!_timer.running) {
-        _timer.start(_initial_retransmission_timeout);
+        if (_fin) {
+            return;
+        }
     }
 }
 
@@ -121,7 +116,7 @@ void TCPSender::tick(const size_t ms_since_last_tick) {
                 _consecutive_retransmissions += 1;
                 _timer.start(_timer.timeout * 2);
             } else {
-                _timer.start(_timer.timeout);
+                _timer.reset();
             }
         } 
     }

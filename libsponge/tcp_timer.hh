@@ -16,6 +16,10 @@ struct TCPTimer {
         timeout = upper_time;
     }
 
+    void reset() {
+        elasped = 0;
+    }
+
     void tick(const std::size_t ms_since_last_tick) {
         elasped += ms_since_last_tick;
     }
