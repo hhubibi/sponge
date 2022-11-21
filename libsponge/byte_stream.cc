@@ -1,4 +1,5 @@
 #include "byte_stream.hh"
+#include <iostream>
 
 // Dummy implementation of a flow-controlled in-memory byte stream.
 
@@ -16,6 +17,9 @@ ByteStream::ByteStream(const size_t capacity) : _capacity(capacity),
             _first(capacity - 1), _buffer(capacity, ' ') {}
 
 size_t ByteStream::write(const string &data) {
+    if (data.length() == 0) {
+        return 0;
+    }
     size_t remaining = remaining_capacity();
     size_t can_write = data.length() > remaining ? remaining : data.length();
     int next_last = _plus_num(_last, static_cast<int>(can_write));
