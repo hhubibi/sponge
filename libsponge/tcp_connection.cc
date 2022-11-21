@@ -42,10 +42,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     }
 
     _receiver.segment_received(seg);
-
     if (seg.header().ack) {
         _sender.ack_received(seg.header().ackno, seg.header().win);
-        set_outbound_queue();
     }
 
     if (seg.length_in_sequence_space() > 0) {
@@ -53,38 +51,9 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         if (_sender.segments_out().empty()) {
             _sender.send_empty_segment();
         } 
-        set_outbound_queue();
-        // else {
-        //     std::cerr << "return SYN: " << seg.header().syn
-        //     << " ACK: " << seg.header().ack
-        //     << " FIN: " << seg.header().fin
-        //     << " RST: " << seg.header().rst
-        //     << " ackno: " << seg.header().ackno
-        //     << " seqno: " << seg.header().seqno
-        //     << " byte in flight: " << bytes_in_flight()
-        //     << " unassembled: " << unassembled_bytes()
-        //     << "\nState: " << TCPState(_sender, _receiver, _active, _linger_after_streams_finish).name()
-        //     << std::endl;
-        //     return;
-        // }
     }
 
-
-    // CLOSE_WAIT, receive FIN
-    // if (unassembled_bytes() == 0 && _receiver.stream_out().input_ended() && !_sender.stream_in().eof()) {
-    //     _linger_after_streams_finish = false;
-    // }
-
-    std::cerr << "SYN: " << seg.header().syn
-                << " ACK: " << seg.header().ack
-                << " FIN: " << seg.header().fin
-                << " RST: " << seg.header().rst
-                << " ackno: " << seg.header().ackno
-                << " seqno: " << seg.header().seqno
-                << " byte in flight: " << bytes_in_flight()
-                << " unassembled: " << unassembled_bytes()
-                << "\nState: " << TCPState(_sender, _receiver, _active, _linger_after_streams_finish).name()
-                << std::endl;
+    set_outbound_queue();
 }
 
 bool TCPConnection::active() const {
@@ -110,7 +79,6 @@ void TCPConnection::tick(const size_t ms_since_last_tick) {
         set_rst_state();
         return;
     }
-
     set_outbound_queue();
 }
 
@@ -151,7 +119,6 @@ void TCPConnection::set_outbound_queue() {
         if (_sender.stream_in().eof() && _sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2
                 && _sender.bytes_in_flight() == 0) {  // Preq 3: The outbound has been fully acked
             if (!_linger_after_streams_finish || _time_since_last_segment_received >= 10 * _cfg.rt_timeout) {
-                std::cerr << "not active" << std::endl;
                 _active = false;
             }
         }

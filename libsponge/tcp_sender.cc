@@ -95,13 +95,11 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         } else {
             _timer.start(_initial_retransmission_timeout);
         }
+        _abs_ackno = abs_ackno;
         _consecutive_retransmissions = 0;
     }
     _window_size = window_size;
-    _abs_ackno = abs_ackno;
-    if (_window_size > _bytes_in_flight) {
-        fill_window();
-    }
+    fill_window();
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
