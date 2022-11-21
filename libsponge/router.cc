@@ -1,4 +1,5 @@
 #include "router.hh"
+#include "address.hh"
 
 #include <bits/stdint-uintn.h>
 #include <cstddef>
@@ -49,8 +50,7 @@ void Router::route_one_datagram(InternetDatagram &dgram) {
         if (_routing_table[i]._prefix_length == 0 && max_match_len == 0) {
             idx = i;
             match = true;
-        }
-        if (_routing_table[i]._prefix_length > max_match_len) {
+        } else if (_routing_table[i]._prefix_length > max_match_len) {
             uint32_t mask = (0xFFFFFFFF << (32 - _routing_table[i]._prefix_length));
             if ((dst & mask) == _routing_table[i]._route_prefix) {
                 max_match_len = _routing_table[i]._prefix_length;
@@ -61,7 +61,8 @@ void Router::route_one_datagram(InternetDatagram &dgram) {
     }
     if (match) {
         dgram.header().ttl -= 1;
-        interface(_routing_table[idx]._interface_num).send_datagram(dgram, _routing_table[idx]._next_hop.value_or(Address::from_ipv4_numeric(dst)));
+        Address addr = _routing_table[idx]._next_hop.value_or(Address::from_ipv4_numeric(dst));
+        interface(_routing_table[idx]._interface_num).send_datagram(dgram, addr);
     }
 }
 
